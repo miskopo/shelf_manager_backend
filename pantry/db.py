@@ -77,5 +77,15 @@ def get_preserve(preserve: dict)-> Union[tuple, None]:
                                         AND main_ingredient = :main_ingredient
                                         AND year = :year;"""),
                               preserve)
-        rows = result.fetchone()
+        row = result.fetchone()
+    return row
+
+def get_all_preserves() -> list[tuple]:
+    """
+    Get all preserve rows from the database.
+    :return: list of tuples for each preserve row
+    """
+    with engine.connect() as conn:
+        result = conn.execute(text("""SELECT * FROM preserves;"""))
+        rows = result.fetchall()
     return rows
