@@ -1,0 +1,14 @@
+[Unit]
+Description=Pantry Barcode Scanner Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pantry-scanner
+Restart=on-failure
+User=pantry
+Group=pantry
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

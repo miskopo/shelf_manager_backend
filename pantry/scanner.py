@@ -1,1 +1,0 @@
-# Barcode input handler
