@@ -166,3 +166,7 @@ This will output the barcode string and optionally generate a PNG file.
 ## Author
 
 @miskopo
+
+**Acknowledgment**
+
+Parts of this project were developed with the assistance of ChatGPT (OpenAI).
