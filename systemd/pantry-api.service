@@ -1,0 +1,19 @@
+[Unit]
+Description=Pantry Manager FastAPI Service
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=pantry
+Group=pantry
+WorkingDirectory=/opt/shelf_manager_backend
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+Environment="PYTHONUNBUFFERED=1"
+Environment="DB_USER=pantry"
+Environment="DB_PASS=your_password"
+Environment="DB_URL=localhost"
+
+[Install]
+WantedBy=multi-user.target
