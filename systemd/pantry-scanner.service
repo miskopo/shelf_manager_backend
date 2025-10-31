@@ -6,10 +6,10 @@ After=network.target
 Type=simple
 User=pantry
 Group=pantry
-ExecStart=/usr/bin/python3 /opt/shelf_manager_backend/scanner_service.py
+ExecStart=/usr/bin/python3 /home/pantry/shelf_manager_backend/pantry/scanner_service.py
 Restart=on-failure
 Environment="PYTHONUNBUFFERED=1"
-EnvironmentFile=/opt/shelf_manager_backend/.env
+EnvironmentFile=/home/pantry/shelf_manager_backend/pantry/.env
 
 [Install]
 WantedBy=multi-user.target

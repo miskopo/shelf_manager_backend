@@ -1,12 +1,10 @@
 """CRUD operations for the pantry database"""
 import os
-from logging import getLogger
+from logger import logger
 from typing import Union
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-
-logger = getLogger("pantry")
 
 load_dotenv()
 
@@ -26,12 +24,13 @@ def add_preserve(preserve: dict[str, Union[str, int]]) -> int:
         result = conn.execute(
             text("""
                  INSERT INTO preserves (type, main_ingredient, year, quantity)
-                 VALUES (:type, :main_ingredient, :year, 1)
+                 VALUES (:preserve_type, :main_ingredient, :year, 1)
                  ON CONFLICT (type, main_ingredient, year)
                      DO UPDATE SET quantity = preserves.quantity + 1;
                  """),
             preserve
         )
+        logger.debug(f"Added {result.rowcount} preserve")
         return result.rowcount
 
 
@@ -47,7 +46,7 @@ def remove_preserve(preserve: dict[str, Union[str, int]]) -> int:
             text("""
                  UPDATE preserves
                  SET quantity = quantity - 1
-                 WHERE type = :type AND main_ingredient = :main_ingredient AND year = :year AND quantity > 1;
+                 WHERE type = :preserve_type AND main_ingredient = :main_ingredient AND year = :year AND quantity > 1;
                  """),
             preserve
         )
@@ -56,10 +55,11 @@ def remove_preserve(preserve: dict[str, Union[str, int]]) -> int:
             result = conn.execute(
                 text("""
                      DELETE FROM preserves
-                     WHERE type = :type AND main_ingredient = :main_ingredient AND year = :year AND quantity = 1;
+                     WHERE type = :preserve_type AND main_ingredient = :main_ingredient AND year = :year AND quantity = 1;
                      """),
                 preserve
             )
+        logger.debug(f"Removed {result.rowcount} preserve")
         return result.rowcount
 
 
@@ -73,11 +73,12 @@ def get_preserve(preserve: dict)-> Union[tuple, None]:
     with engine.connect() as conn:
         result = conn.execute(text("""SELECT * FROM preserves
                                       WHERE
-                                          type = :type
+                                          type = :preserve_type
                                         AND main_ingredient = :main_ingredient
                                         AND year = :year;"""),
                               preserve)
         row = result.fetchone()
+        logger.debug(f"Found preserve: {row}")
     return row
 
 def get_all_preserves() -> list[tuple]:
@@ -88,4 +89,5 @@ def get_all_preserves() -> list[tuple]:
     with engine.connect() as conn:
         result = conn.execute(text("""SELECT * FROM preserves;"""))
         rows = result.fetchall()
+        logger.debug(f"Found {len(rows)} preserves")
     return rows

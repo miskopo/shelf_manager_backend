@@ -1,4 +1,6 @@
+evdev
+pyserial
 fastapi
-python-dotenv~=1.1.1
-SQLAlchemy~=2.0.44
-setuptools~=80.9.0
+python-dotenv
+SQLAlchemy
+setuptools

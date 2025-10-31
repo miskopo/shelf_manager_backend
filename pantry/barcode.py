@@ -7,15 +7,13 @@ apr         j       23
 apricot     jam     2023
 """
 
-import logging
 import os
 from datetime import datetime
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-logger = logging.getLogger("pantry")
-logger.setLevel(logging.INFO)
+from logger import logger
 
 load_dotenv()
 

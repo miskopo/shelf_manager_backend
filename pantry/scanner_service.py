@@ -1,32 +1,37 @@
 """
 Pantry Scanner Daemon
-Continuously reads barcode input from /dev/hidraw*, converts to preserve info, and updates the DB.
+Continuously reads barcode input from /dev/input/eventX, converts to preserve info, and updates the DB.
 """
 
-import logging
 import os
-import time
 
 from dotenv import load_dotenv
+from evdev import InputDevice, categorize, ecodes
+from sqlalchemy import create_engine, text
 
-from pantry.db import add_preserve, remove_preserve
+from logger import logger
 from pantry.barcode import barcode_to_json
+from pantry.db import add_preserve, remove_preserve
 
 load_dotenv()
 
-DEVICE_PATH = os.getenv("SCANNER_DEVICE")
-MODE_FILE = "/var/lib/pantry/mode"  # stores 'add' or 'remove'
-os.makedirs("/var/lib/pantry", exist_ok=True)
+DEVICE_PATH = os.getenv("SCANNER_EVENT")
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("pantry.scanner")
 
+load_dotenv()
+
+DB_PASS = os.getenv("DB_PASS")
+DB_USER = os.getenv("DB_USER")
+DB_URL = os.getenv("DB_URL")
+
+engine = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_URL}/pantrydb")
 
 def read_mode() -> str:
     """Read current mode (add/remove)."""
     try:
-        with open(MODE_FILE, "r") as f:
-            mode = f.read().strip().lower()
+        with engine.connect() as conn:
+            mode = conn.execute(text("""SELECT mode FROM mode""")).fetchone()[0]
+            logger.debug(f"Reading mode: {mode}")
             return mode if mode in ("add", "remove") else "remove"
     except FileNotFoundError:
         logger.error("Unable to read mode file, defaulting to remove")
@@ -35,14 +40,16 @@ def read_mode() -> str:
 
 def set_mode(new_mode: str) -> None:
     """set add/remove mode (triggered by special barcodes)."""
-    with open(MODE_FILE, "w") as f:
-        f.write(new_mode)
+    with engine.begin() as conn:
+        result = conn.execute(text("""UPDATE mode SET mode = :new_mode"""), {"new_mode": new_mode})  # safe to update whole table
+        assert result.rowcount in [0, 1]
     logger.info(f"Switched mode to {new_mode.upper()}")
 
 
 def handle_barcode(barcode: str):
     """Interpret and act on scanned barcode."""
     barcode = barcode.strip()
+    logger.debug(f"Processing barcode: {barcode}")
     if not barcode:
         return
 
@@ -52,6 +59,7 @@ def handle_barcode(barcode: str):
         return
     if barcode == "remove":
         set_mode("remove")
+        return
 
     preserve = barcode_to_json(barcode)
     if not preserve:
@@ -68,25 +76,21 @@ def handle_barcode(barcode: str):
 
 
 def run():
-    logger.info(f"Listening on {DEVICE_PATH}...")
-    while True:
-        try:
-            with open(DEVICE_PATH, "r") as dev:
-                buffer = ""
-                while True:
-                    ch = dev.read(1)
-                    if not ch:
-                        time.sleep(0.01)
-                        continue
 
-                    if ch in ("\n", "\r"):
-                        handle_barcode(buffer)
-                        buffer = ""
-                    else:
-                        buffer += ch
-        except Exception as e:
-            logger.error(f"Device read error: {e}")
-            time.sleep(2)
+    device = InputDevice(DEVICE_PATH)
+    logger.info(f"Listening on {device.name}...")
+
+    barcode = ""
+    for event in device.read_loop():
+        if event.type == ecodes.EV_KEY:
+            data = categorize(event)
+            if data.keystate == 1:  # Key down
+                if data.keycode == "KEY_ENTER":
+                    logger.debug(f"Scanned: {barcode}")
+                    handle_barcode(barcode)
+                    barcode = ""
+                elif len(data.keycode) == 5 and data.keycode.startswith("KEY_"):
+                    barcode += data.keycode[-1].lower()
 
 
 if __name__ == "__main__":
